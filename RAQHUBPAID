@@ -34,9 +34,13 @@ local Window = Rayfield:CreateWindow({
    }
 })
 
+local MainTab = Window:CreateTab("Main", 4483362458) -- Title, Image
+local MainSection = MainTab:CreateSection("Main Features")
+
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local VirtualInputManager = game:GetService("VirtualInputManager")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
 local player = Players.LocalPlayer
 
 local dupeAmount = 10
@@ -51,13 +55,10 @@ local function notify(message, time, type)
             Duration = time or 5,
         })
     end)
-
-    if not success then
-        warn("Notification failed: " .. err)
-    end
+    if not success then warn("Notification failed: " .. err) end
 end
 
--- Textbox for Duplication Amount
+-- Input for duplication amount
 MainTab:CreateInput({
     Name = "Enter Card Dupe Amount",
     PlaceholderText = "10",
@@ -72,89 +73,83 @@ MainTab:CreateInput({
     end
 })
 
+-- Function to safely interact with UI elements
+local function clickButton(button)
+    if button and button.Visible then
+        local buttonPos = button.AbsolutePosition + button.AbsoluteSize / 2
+        UserInputService.InputBegan:Fire({
+            UserInputType = Enum.UserInputType.MouseButton1,
+            Position = buttonPos
+        })
+        wait(0.1)
+        UserInputService.InputEnded:Fire({
+            UserInputType = Enum.UserInputType.MouseButton1,
+            Position = buttonPos
+        })
+    end
+end
+
 -- Duplication Function
 local function duplicateCardsAndLaptops()
     if dupeAmount <= 0 then
         StatusLabel.Text = "Invalid amount!"
         return
     end
-
     StatusLabel.Text = "Buying cards & laptops..."
 
-    -- Open Dealer UI
-    fireclickdetector(game.Workspace["Streetz War"].Anonymous.ClickDetector)
-    wait(2) -- Wait to ensure the UI is open
-    player.PlayerGui:WaitForChild("DealerGui")
-    local shopGui = player.PlayerGui.DealerGui.ShopFrame
-    shopGui.Visible = true
-    player.PlayerGui.DealerGui.Frame.Visible = false
-    game:GetService("RunService"):Set3dRenderingEnabled(false)
+    -- Ensure Dealer UI exists before clicking
+    local dealer = game.Workspace["Streetz War"].Anonymous:FindFirstChild("ClickDetector")
+    if dealer then
+        fireclickdetector(dealer)
+        wait(2)
+    else
+        notify("Dealer not found!", 3, "Error")
+        return
+    end
 
-    -- Position player correctly
-    repeat wait() until player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-    player.Character.HumanoidRootPart.CFrame = CFrame.new(-55, 4.5, 170)
+    -- Ensure Dealer GUI is available
+    local dealerGui = player.PlayerGui:WaitForChild("DealerGui", 5)
+    if not dealerGui then
+        notify("Dealer GUI failed to load!", 3, "Error")
+        return
+    end
 
-    wait(0.5)
+    dealerGui.ShopFrame.Visible = true
+    dealerGui.Frame.Visible = false
+    RunService:Set3dRenderingEnabled(false)
+
+    -- Move player to dealer safely
+    if player.Character and player.Character:FindFirstChild("Humanoid") then
+        player.Character.Humanoid:MoveTo(Vector3.new(-55, 4.5, 170))
+    end
+    wait(1)
 
     -- Click buttons for purchasing
-    local cardButton = shopGui["Blank Card"]
-    local laptopButton = shopGui["laptop"]
+    local cardButton = dealerGui.ShopFrame:FindFirstChild("Blank Card")
+    local laptopButton = dealerGui.ShopFrame:FindFirstChild("laptop")
 
     for i = 1, dupeAmount do
-        task.wait()
-        -- Click the card button
-        if cardButton.Visible then
-            local cardPos = cardButton.AbsolutePosition
-            VirtualInputManager:SendMouseButtonEvent(cardPos.X + 150, cardPos.Y + 60, 0, true, game, 0)
-            task.wait(0.1)
-            VirtualInputManager:SendMouseButtonEvent(cardPos.X + 150, cardPos.Y + 60, 0, false, game, 0)
-        end
-
-        task.wait(0.1)
-
-        -- Click the laptop button
-        if laptopButton.Visible then
-            local laptopPos = laptopButton.AbsolutePosition
-            VirtualInputManager:SendMouseButtonEvent(laptopPos.X + 150, laptopPos.Y + 60, 0, true, game, 0)
-            task.wait(0.1)
-            VirtualInputManager:SendMouseButtonEvent(laptopPos.X + 150, laptopPos.Y + 60, 0, false, game, 0)
-        end
+        if cardButton then clickButton(cardButton) end
+        wait(0.1)
+        if laptopButton then clickButton(laptopButton) end
     end
 
-    game:GetService("RunService"):Set3dRenderingEnabled(true)
+    RunService:Set3dRenderingEnabled(true)
 
-    -- Close the UI
-    local exitButton = shopGui.exit
-    VirtualInputManager:SendMouseButtonEvent(exitButton.AbsolutePosition.X + 300, exitButton.AbsolutePosition.Y + 65, 0, true, game, 0)
-    wait()
-    VirtualInputManager:SendMouseButtonEvent(exitButton.AbsolutePosition.X + 300, exitButton.AbsolutePosition.Y + 65, 0, false, game, 0)
-
-    -- Move player to next step
-    player.Character.HumanoidRootPart.CFrame = CFrame.new(954, 4.7, -61)
-    wait(4)
-
+    -- Close the UI safely
+    local exitButton = dealerGui.ShopFrame:FindFirstChild("exit")
+    if exitButton then clickButton(exitButton) end
+    
+    wait(2)
+    StatusLabel.Text = "Processing laptops & cards..."
+    
     -- Process Laptops
-    StatusLabel.Text = "Processing laptops..."
-    local laptopCount = 0
-    for _, v in pairs(player.Backpack:GetChildren()) do
-        if v.Name == "Laptop" then
-            laptopCount = laptopCount + 1
-        end
+    local laptopCount = #player.Backpack:GetChildren()
+    for i = 1, laptopCount do
+        ReplicatedStorage.Assets.Other.GiverPunchmade:InvokeServer(true, "NEW123")
     end
-
-    for i = 1, laptopCount - 1 do
-        spawn(function()
-            local args = { true, "NEW123" }
-            ReplicatedStorage.Assets.Other.GiverPunchmade:InvokeServer(unpack(args))
-        end)
-    end
-
-    wait(4)
-    player.Backpack.Laptop.Parent = player.Character
-    wait(4)
-
+    
     -- Process Cards
-    StatusLabel.Text = "Processing cards..."
     local cardCount = 0
     for _, v in pairs(player.Backpack:GetChildren()) do
         if v.Name == "Loaded Card" then
@@ -163,13 +158,9 @@ local function duplicateCardsAndLaptops()
     end
 
     for i = 1, cardCount do
-        spawn(function()
-            local args = { false, "NEW123" }
-            ReplicatedStorage.Assets.Other.GiverPunchmade:InvokeServer(unpack(args))
-        end)
+        ReplicatedStorage.Assets.Other.GiverPunchmade:InvokeServer(false, "NEW123")
     end
 
-    wait(1)
     StatusLabel.Text = "Duplication Complete!"
     player.Character.Humanoid:UnequipTools()
 end
@@ -179,12 +170,8 @@ MainTab:CreateButton({
     Name = "Start Card Duplication",
     Callback = function()
         duplicateCardsAndLaptops()
-    
-        end
+    end
 })
-local MainTab = Window:CreateTab("Main", 4483362458) -- Title, Image
-local MainSection = MainTab:CreateSection("Main Features")
-
 
 
 
@@ -778,3 +765,4 @@ local Button = TrollTab:CreateButton({
         end
     end
 })
+
