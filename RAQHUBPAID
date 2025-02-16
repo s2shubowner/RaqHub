@@ -34,9 +34,6 @@ local Window = Rayfield:CreateWindow({
    }
 })
 
-local MainTab = Window:CreateTab("Main", 4483362458) -- Title, Image
-local MainSection = MainTab:CreateSection("Main Features")
-
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local VirtualInputManager = game:GetService("VirtualInputManager")
@@ -185,6 +182,9 @@ MainTab:CreateButton({
     
         end
 })
+local MainTab = Window:CreateTab("Main", 4483362458) -- Title, Image
+local MainSection = MainTab:CreateSection("Main Features")
+
 
 
 
